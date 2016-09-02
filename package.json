@@ -1,0 +1,31 @@
+{
+  "name": "gulp-versioning",
+  "version": "1.0.0",
+  "description": "A gulp tool that will help to expose the version of your application",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Negan1911/gulp-versioning.git"
+  },
+  "keywords": [
+    "Gulp",
+    "Versioning",
+    "git",
+    "tag",
+    "commit",
+    "gulpplugin"
+  ],
+  "author": "Nahuel A. Veron",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Negan1911/gulp-versioning/issues"
+  },
+  "homepage": "https://github.com/Negan1911/gulp-versioning#readme",
+  "dependencies": {
+    "gulp-util": "^3.0.7",
+    "through2": "^2.0.1"
+  }
+}
