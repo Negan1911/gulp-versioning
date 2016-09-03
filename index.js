@@ -3,29 +3,64 @@ var through = require('through2');
 var gutil = require('gulp-util');
 var applySourceMap = require('vinyl-sourcemaps-apply');
 var BufferStreams = require('bufferstreams');
+var simpleGit = require('simple-git')();
 
-function runCommand(cmd, args, cb) {
-  var spawn = require('child_process').spawn;
-  var child = spawn(cmd, args);
-  var resp = '';
-
-  child.stdout.on('data', function(buffer) {
-    resp += buffer.toString();
+function getLatestTag() {
+  return new Promise(function(resolve, reject) {
+    simpleGit.tags(function(err, tags) {
+      if (err) {
+        reject(err);
+      }
+      else resolve(tags.latest);
+    });
   });
+}
 
-  child.stdout.on('end', function() {
-    cb(resp);
+function getLatestCommit() {
+  return new Promise(function(resolve, reject) {
+    simpleGit.tags(function(err, logs) {
+      if (err) {
+        reject(err);
+      }
+      else resolve(logs.latest);
+    });
   });
 }
 
 function appendVersion(file, input, tag) {
   var res = input.toString();
   if (tag) {
-    // TODO: Inject JAvascript on the browser with thag
-    //res = res + '(function() { window.version[' + tag + '] =  })()'
+    getLatestTag.then(function(latestTag) {
+      getLatestCommit.then(function(latestCommit) {
+        // TODO: Inject JAvascript on the browser with thag
+        var commit = JSON.parse(latestCommit);
+        res = res + `
+        (function() {
+          if(!window.version) {
+            window.version = {};
+          }
+          window.version["${tag}"] = {
+            latestTag: "${latestTag}",
+            latestCommit: ${commit}
+          }
+        })()`;
+      });
+    });
   }
   else {
-    // TODO: Inject Javascript on the browser without the tag
+    getLatestTag.then(function(latestTag) {
+      getLatestCommit.then(function(latestCommit) {
+        // TODO: Inject JAvascript on the browser with thag
+        var commit = JSON.parse(latestCommit);
+        res = res + `
+        (function() {
+          window.version = {
+            latestTag: "${latestTag}",
+            latestCommit: ${commit}
+          }
+        })()`;
+      });
+    });
   }
 
 
