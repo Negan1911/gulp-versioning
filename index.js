@@ -28,49 +28,58 @@ function getLatestCommit() {
 }
 
 function appendVersion(file, input, tag) {
-  var res = input.toString();
-  if (tag) {
-    getLatestTag.then(function(latestTag) {
-      getLatestCommit.then(function(latestCommit) {
-        // TODO: Inject JAvascript on the browser with thag
-        var commit = JSON.parse(latestCommit);
-        res = res + `
-        (function() {
-          if(!window.version) {
-            window.version = {};
+  return new Promise(function(resolve) {
+    var res = input.toString();
+    if (tag) {
+      getLatestTag.then(function(latestTag) {
+        getLatestCommit.then(function(latestCommit) {
+          // TODO: Inject JAvascript on the browser with thag
+          var commit = JSON.parse(latestCommit);
+          res = res + `
+          (function() {
+            if(!window.version) {
+              window.version = {};
+            }
+            window.version["${tag}"] = {
+              latestTag: "${latestTag}",
+              latestCommit: ${commit}
+            }
+          })()`;
+
+          if (file.sourceMap) {
+            var sourceMap = JSON.parse(res.map);
+            sourceMap.file = file.relative;
+            applySourceMap(file, sourceMap);
           }
-          window.version["${tag}"] = {
-            latestTag: "${latestTag}",
-            latestCommit: ${commit}
-          }
-        })()`;
+
+          resolve(new Buffer(res.src));
+        });
       });
-    });
-  }
-  else {
-    getLatestTag.then(function(latestTag) {
-      getLatestCommit.then(function(latestCommit) {
-        // TODO: Inject JAvascript on the browser with thag
-        var commit = JSON.parse(latestCommit);
-        res = res + `
-        (function() {
-          window.version = {
-            latestTag: "${latestTag}",
-            latestCommit: ${commit}
+    }
+    else {
+      getLatestTag.then(function(latestTag) {
+        getLatestCommit.then(function(latestCommit) {
+          // TODO: Inject JAvascript on the browser with thag
+          var commit = JSON.parse(latestCommit);
+          res = res + `
+          (function() {
+            window.version = {
+              latestTag: "${latestTag}",
+              latestCommit: ${commit}
+            }
+          })()`;
+
+          if (file.sourceMap) {
+            var sourceMap = JSON.parse(res.map);
+            sourceMap.file = file.relative;
+            applySourceMap(file, sourceMap);
           }
-        })()`;
+
+          resolve(new Buffer(res.src));
+        });
       });
-    });
-  }
-
-
-  if (file.sourceMap) {
-    var sourceMap = JSON.parse(res.map);
-    sourceMap.file = file.relative;
-    applySourceMap(file, sourceMap);
-  }
-
-  return new Buffer(res.src);
+    }
+  });
 }
 
 module.exports = function (tag) {
@@ -83,26 +92,27 @@ module.exports = function (tag) {
 
     // Buffer input.
     if (file.isBuffer()) {
-      try {
-        file.contents = appendVersion(file, file.contents, tag);
-      } catch (e) {
+      appendVersion(file, file.contents, tag).then(function(buffer) {
+        file.contents = buffer;
+        this.push(file);
+        done();
+      }, function(e) {
         this.emit('error', e);
         return done();
-      }
+      });
+    }
     // Dealing with stream input.
-    } else {
+    else {
       file.contents = file.contents.pipe(new BufferStreams(function(err, buf, cb) {
         if (err) return cb(new gutil.PluginError('gulp-versioning', err));
-        try {
-          var transformed = appendVersion(file, buf, tag);
-        } catch (e) {
-          return cb(e);
-        }
-        cb(null, transformed);
+        appendVersion(file, buf, tag).then(function(buffer) {
+          cb(null, buffer);
+          this.push(file);
+          done();
+        }, function(e) {
+          cb(e);
+        });
       }));
     }
-
-    this.push(file);
-    done();
   });
 };
