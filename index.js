@@ -18,7 +18,7 @@ function getLatestTag() {
 
 function getLatestCommit() {
   return new Promise(function(resolve, reject) {
-    simpleGit.tags(function(err, logs) {
+    simpleGit.log(function(err, logs) {
       if (err) {
         reject(err);
       }
@@ -28,13 +28,13 @@ function getLatestCommit() {
 }
 
 function appendVersion(file, input, tag) {
-  return new Promise(function(resolve) {
+  return new Promise(function(resolve, reject) {
     var res = input.toString();
     if (tag) {
-      getLatestTag.then(function(latestTag) {
-        getLatestCommit.then(function(latestCommit) {
+      getLatestTag().then(function(latestTag) {
+        getLatestCommit().then(function(latestCommit) {
           // TODO: Inject JAvascript on the browser with thag
-          var commit = JSON.parse(latestCommit);
+          var commit = JSON.stringify(latestCommit);
           res = res + `
           (function() {
             if(!window.version) {
@@ -52,13 +52,13 @@ function appendVersion(file, input, tag) {
             applySourceMap(file, sourceMap);
           }
 
-          resolve(new Buffer(res.src));
-        });
-      });
+          resolve(new Buffer(res));
+        }, reject);
+      }, reject);
     }
     else {
-      getLatestTag.then(function(latestTag) {
-        getLatestCommit.then(function(latestCommit) {
+      getLatestTag().then(function(latestTag) {
+        getLatestCommit().then(function(latestCommit) {
           // TODO: Inject JAvascript on the browser with thag
           var commit = JSON.parse(latestCommit);
           res = res + `
@@ -75,9 +75,9 @@ function appendVersion(file, input, tag) {
             applySourceMap(file, sourceMap);
           }
 
-          resolve(new Buffer(res.src));
-        });
-      });
+          resolve(new Buffer(res));
+        }, reject);
+      }, reject);
     }
   });
 }
@@ -86,19 +86,16 @@ module.exports = function (tag) {
   return through.obj(function (file, enc, done) {
     // When null just pass through.
     if (file.isNull()) {
-      this.push(file);
-      return done();
+      return done(new gutil.PluginError('gulp-versioning', 'No File, Stream or Buffer to Fetch'));
     }
 
     // Buffer input.
     if (file.isBuffer()) {
       appendVersion(file, file.contents, tag).then(function(buffer) {
         file.contents = buffer;
-        this.push(file);
-        done();
+        done(null, file);
       }, function(e) {
-        this.emit('error', e);
-        return done();
+        return done(new gutil.PluginError('gulp-versioning', e));
       });
     }
     // Dealing with stream input.
@@ -107,8 +104,7 @@ module.exports = function (tag) {
         if (err) return cb(new gutil.PluginError('gulp-versioning', err));
         appendVersion(file, buf, tag).then(function(buffer) {
           cb(null, buffer);
-          this.push(file);
-          done();
+          done(null, file);
         }, function(e) {
           cb(e);
         });
