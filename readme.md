@@ -5,7 +5,7 @@ A plugin for gulp that will help you track versions over production.
 Basically, after your final version of your .js file was made with gulp (concatenating all, or minifying it), you can pipe this plugin that will add a Object under the `window` object of the browser.
 
 To use it, simply put `.pipe(version())` on your gulp task.
-This will make a ``window.version` object like:
+This will make a `window.version` object like:
 ```
 {
   latestTag: "v1.0",
